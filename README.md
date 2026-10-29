@@ -38,6 +38,8 @@ End, Page Up/Down, Cmd-A and Escape for selection; right-click selects the row b
 appears; double-click or Return activates; hover highlight; emphasized selection in the key window
 and grey selection when it is not; alternating rows, row and column separators as options.
 
+![FlyTable gallery: 100,000 synthetic matters sorted by Hours, one row selected](docs/gallery.png)
+
 ## Status
 
 Version 0.1.0, macOS only. The iOS renderer, inline editing, outline rows, floating group rows,

@@ -40,6 +40,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
 
   override var isFlipped: Bool { true }
   override var acceptsFirstResponder: Bool { true }
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
   override var isOpaque: Bool { configuration.style != .plain }
 
   var rowHeight: CGFloat { configuration.density.rowHeight }
@@ -73,10 +74,12 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     fitRevision = engine.revision
     fitWidths = [:]
     let sample = min(engine.count, 300)
+    let stride = max(engine.count / max(sample, 1), 1)
     for column in engine.columns where column.spec.width == .fit {
       var width: CGFloat = 0
       let font = column.spec.alignment == .numeric ? theme.numericFont : theme.cellFont
-      for i in 0..<sample {
+      for k in 0..<sample {
+        let i = min(k * stride, engine.count - 1)
         let s = engine.value(atDisplayIndex: i, column: column.spec.id).displayString()
         width = max(width, (s as NSString).size(withAttributes: [.font: font]).width)
       }
@@ -148,11 +151,13 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
 
   private func drawRowBackgrounds(_ rows: Range<Int>, visible: NSRect, clip: NSRect? = nil) {
     let emphasized = isWindowKey && window?.firstResponder === self
+    NSGraphicsContext.current?.saveGraphicsState()
+    defer { NSGraphicsContext.current?.restoreGraphicsState() }
+    if let clip { NSBezierPath(rect: clip).addClip() }
     for i in rows {
       var r = rowRect(i)
       r.origin.x = visible.minX
       r.size.width = visible.width
-      if let clip { r = r.intersection(clip) }
       if configuration.alternatingRows, i % 2 == 1 {
         theme.alternateRowBackground.setFill()
         r.fill()

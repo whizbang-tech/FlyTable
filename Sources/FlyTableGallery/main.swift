@@ -10,9 +10,65 @@ struct Matter: Identifiable, Sendable {
   let status: String
   let tags: [String]
   let hours: Double
+  let budget: Double
   let opened: Date
   let isBillable: Bool
+  var burn: Double { hours / budget }
+  var initials: String { attorney.split(separator: " ").compactMap(\.first).map(String.init).joined() }
 }
+
+extension Color {
+  /// A FlyUI hue as a SwiftUI colour (the gallery has no FlyUI dependency).
+  init(_ tint: FlyTint) {
+    let c = tint.solid
+    self.init(red: c.red, green: c.green, blue: c.blue)
+  }
+}
+
+/// A hosted cell: initials avatar beside the name. Reads the row state to brighten on emphasis.
+struct AttorneyCell: View {
+  let matter: Matter
+  @Environment(\.flyCellState) private var state
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Text(matter.initials)
+        .font(.system(size: 10, weight: .semibold))
+        .foregroundStyle(.white)
+        .frame(width: 20, height: 20)
+        .background(Color(SyntheticData.tint(forArea: SyntheticData.practiceAreas[matter.id % SyntheticData.practiceAreas.count])), in: Circle())
+      Text(matter.attorney)
+        .font(.system(size: 14))
+        .lineLimit(1)
+        .truncationMode(.tail)
+    }
+    .opacity(state.isHovered || state.isSelected ? 1 : 0.92)
+  }
+}
+
+/// A hosted cell: a budget burn bar with the percentage, tinted by how close to budget it is.
+struct BurnBar: View {
+  let burn: Double
+
+  var body: some View {
+    let clamped = min(max(burn, 0), 1.25)
+    let tint: FlyTint = burn > 1 ? .destructive : burn > 0.8 ? .warning : .success
+    HStack(spacing: 8) {
+      GeometryReader { proxy in
+        ZStack(alignment: .leading) {
+          Capsule().fill(Color(tint).opacity(0.14))
+          Capsule().fill(Color(tint)).frame(width: proxy.size.width * min(clamped, 1))
+        }
+      }
+      .frame(height: 6)
+      Text(burn, format: .percent.precision(.fractionLength(0)))
+        .font(.system(size: 12).monospacedDigit())
+        .foregroundStyle(.secondary)
+        .frame(width: 40, alignment: .trailing)
+    }
+  }
+}
+
 
 enum SyntheticData {
   static let firsts = ["Ada", "Grace", "Katherine", "Alan", "Edsger", "Barbara", "Donald", "Margaret", "Linus", "Dennis", "Ken", "Radia", "Frances", "Jean", "Hedy", "Tim"]
@@ -53,6 +109,7 @@ enum SyntheticData {
         status: statuses[Int(next() % UInt64(statuses.count))],
         tags: (0..<Int(next() % 4)).map { _ in practiceAreas[Int(next() % UInt64(practiceAreas.count))] },
         hours: Double(next() % 40_000) / 100,
+        budget: Double(200 + next() % 300),
         opened: base.addingTimeInterval(-Double(next() % 2_000) * 86_400),
         isBillable: next() % 4 != 0
       ))
@@ -73,16 +130,28 @@ struct GalleryView: View {
   @State private var alternating = true
   @State private var separators = true
   @State private var lastActivated = "—"
+  @State private var flagged: Set<Int> = []
 
   var body: some View {
     FlyTable(rows, selection: $selection, sortOrder: $sortOrder, layout: $layout) {
       FlyColumn("ID", value: \Matter.id).width(.fit).pinned()
       FlyColumn("Matter", value: \Matter.title).width(.flex(2)).width(min: 160)
       FlyColumn("Client", value: \Matter.client).width(min: 120)
-      FlyColumn("Attorney", value: \Matter.attorney).width(min: 120)
+      FlyColumn("Attorney", sortBy: \Matter.attorney) { AttorneyCell(matter: $0) }.width(min: 150)
       FlyColumn("Status", badge: \Matter.status, tint: SyntheticData.tint(for:)).width(.fixed(110))
       FlyColumn("Practice", badges: \Matter.tags, tint: SyntheticData.tint(forArea:)).width(.flex(1.2)).width(min: 140)
       FlyColumn("Hours", value: \Matter.hours).width(.fixed(90))
+      FlyColumn("Burn", sortBy: \Matter.burn) { BurnBar(burn: $0.burn) }.width(.fixed(150))
+      FlyColumn("Flag") { (matter: Matter) in
+        Button {
+          if flagged.contains(matter.id) { flagged.remove(matter.id) } else { flagged.insert(matter.id) }
+        } label: {
+          Image(systemName: flagged.contains(matter.id) ? "star.fill" : "star")
+            .foregroundStyle(flagged.contains(matter.id) ? Color(.amber) : .secondary)
+        }
+        .buttonStyle(.plain)
+      }
+      .interactive().alignment(.center).width(.fixed(48))
       FlyColumn("Opened", value: \Matter.opened).width(.fixed(110))
       FlyColumn("Billable", value: \Matter.isBillable).width(.fixed(80))
     }
@@ -122,7 +191,7 @@ struct GalleryView: View {
         }
         Toggle("Alternating", isOn: $alternating)
         Toggle("Separators", isOn: $separators)
-        Text("\(selection.count) selected · \(sortOrder.primary.map { "\($0.column) \($0.ascending ? "↑" : "↓")" } ?? "unsorted") · \(lastActivated)")
+        Text("\(selection.count) selected · \(flagged.count) flagged · \(sortOrder.primary.map { "\($0.column) \($0.ascending ? "↑" : "↓")" } ?? "unsorted") · \(lastActivated)")
           .font(.caption).foregroundStyle(.secondary)
       }
     }

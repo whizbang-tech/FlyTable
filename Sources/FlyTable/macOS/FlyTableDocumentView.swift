@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 import CoreText
+import SwiftUI
 import FlyTableCore
 
 /// The custom-drawn table body. One view, sized to the whole content, draws only the visible
@@ -30,11 +31,24 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
   private var trackingArea: NSTrackingArea?
   private var lastClipWidth: CGFloat = 0
 
+  // Hosted cells: one hosting view per visible (row, hosted column), recycled through a pool.
+  private struct HostedKey: Hashable { let row: Row.ID; let column: FlyColumnID }
+  private var hostedColumns: [FlyColumnID: FlyColumn<Row>] = [:]
+  private var hostedViews: [HostedKey: FlyHostingView] = [:]
+  private var hostedPool: [FlyHostingView] = []
+  private var hostedGeneration = 0
+  private let pinnedHost = FlyHostContainer(frame: .zero)
+  private let unpinnedHost = FlyHostContainer(frame: .zero)
+
   init(engine: FlyTableEngine<Row>) {
     self.engine = engine
     super.init(frame: .zero)
     wantsLayer = false
     canDrawConcurrently = true
+    for host in [unpinnedHost, pinnedHost] {
+      host.isHidden = true
+      addSubview(host)
+    }
   }
   required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
@@ -53,6 +67,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
   func relayout() {
     let clipWidth = enclosingScrollView?.contentView.bounds.width ?? bounds.width
     geometry = FlyRowGeometry(rowCount: engine.count, rowHeight: rowHeight)
+    hostedColumns = Dictionary(engine.columns.filter(\.isHosted).map { ($0.spec.id, $0) }, uniquingKeysWith: { a, _ in a })
     computeFitWidthsIfNeeded()
     let available = max(clipWidth - horizontalMargin * 2, 0)
     resolved = FlyColumnLayoutResolver.resolve(specs: engine.specs, state: engine.layout, availableWidth: available, fitWidths: fitWidths)
@@ -62,6 +77,20 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     if frame.size != newSize { setFrameSize(newSize) }
     lines.removeAll()
     needsDisplay = true
+    updateHostedCells()
+  }
+
+  /// Repaint the visible rows and refresh hosted cell state (selection, focus, hover).
+  func refreshVisible() {
+    setNeedsDisplay(visibleArea)
+    updateHostedCells()
+  }
+
+  /// Hosted content closures changed (the host view re-rendered): re-evaluate every visible hosted cell.
+  func hostedContentDidChange() {
+    hostedGeneration &+= 1
+    hostedColumns = Dictionary(engine.columns.filter(\.isHosted).map { ($0.spec.id, $0) }, uniquingKeysWith: { a, _ in a })
+    updateHostedCells()
   }
 
   func invalidateAll() {
@@ -75,7 +104,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     fitWidths = [:]
     let sample = min(engine.count, 300)
     let stride = max(engine.count / max(sample, 1), 1)
-    for column in engine.columns where column.spec.width == .fit {
+    for column in engine.columns where column.spec.width == .fit && !column.isHosted {
       var width: CGFloat = 0
       let font = column.spec.alignment == .numeric ? theme.numericFont : theme.cellFont
       for k in 0..<sample {
@@ -133,7 +162,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     if !pinned.isEmpty {
       context.clip(to: CGRect(x: scrollX + horizontalMargin + pinnedWidth, y: dirtyRect.minY, width: dirtyRect.width, height: dirtyRect.height))
     }
-    for column in unpinned { drawCells(column, rows: rows, xOffset: 0, context: context) }
+    for column in unpinned where hostedColumns[column.id] == nil { drawCells(column, rows: rows, xOffset: 0, context: context) }
     context.restoreGState()
     if !pinned.isEmpty {
       let pinRect = NSRect(x: scrollX + horizontalMargin, y: dirtyRect.minY, width: pinnedWidth, height: dirtyRect.height)
@@ -142,7 +171,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
         pinRect.fill()
       }
       drawRowBackgrounds(rows, visible: visible, clip: pinRect)
-      for column in pinned { drawCells(column, rows: rows, xOffset: scrollX, context: context) }
+      for column in pinned where hostedColumns[column.id] == nil { drawCells(column, rows: rows, xOffset: scrollX, context: context) }
       if scrollX > 0 {
         theme.separator.setFill()
         NSRect(x: pinRect.maxX - 0.5, y: dirtyRect.minY, width: 0.5, height: dirtyRect.height).fill()
@@ -391,6 +420,93 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     }
   }
 
+  // MARK: Hosted cells
+
+  /// Place a hosting view over every visible cell of a hosted column, reusing the view a row
+  /// already has, taking one from the pool otherwise, and pooling the views of rows that left.
+  /// The per-scroll cost is a frame update per visible hosted cell; content is re-evaluated only
+  /// when the row, its state or the host view's generation changed.
+  private func updateHostedCells() {
+    let hosted = resolved.filter { hostedColumns[$0.id] != nil }
+    guard !hosted.isEmpty, engine.count > 0 else {
+      for (_, view) in hostedViews { recycle(view) }
+      hostedViews.removeAll()
+      pinnedHost.place(.zero)
+      unpinnedHost.place(.zero)
+      return
+    }
+    let visible = visibleArea
+    let headerY = configuration.floatingHeader ? visible.minY : 0
+    let top = max(visible.minY, headerY + headerHeight)
+    let bodyHeight = max(visible.maxY - top, 0)
+    let pinnedW = pinnedWidth
+    let margin = horizontalMargin
+    pinnedHost.place(pinnedW > 0 ? NSRect(x: visible.minX + margin, y: top, width: pinnedW, height: bodyHeight) : .zero)
+    unpinnedHost.place(NSRect(x: visible.minX + margin + pinnedW, y: top, width: max(visible.width - margin * 2 - pinnedW, 0), height: bodyHeight))
+
+    let emphasized = isWindowKey && window?.firstResponder === self
+    let lower = top - headerHeight, upper = visible.maxY - headerHeight
+    let rows = upper > lower ? geometry.rows(in: lower...upper) : 0..<0
+    let inset = theme.cellInset
+    var live = Set<HostedKey>()
+    live.reserveCapacity(rows.count * hosted.count)
+    for column in hosted {
+      guard let definition = hostedColumns[column.id], let content = definition.content else { continue }
+      let isPinned = column.spec.pin == .leading
+      let x = columnX(column) + (isPinned ? visible.minX : 0) + inset
+      let width = max(column.width - inset * 2, 1)
+      let container = isPinned ? pinnedHost : unpinnedHost
+      let alignment = column.spec.alignment.swiftUIAlignment
+      for i in rows {
+        let id = engine.id(atDisplayIndex: i)
+        let key = HostedKey(row: id, column: column.id)
+        live.insert(key)
+        let view = hostedViews[key] ?? dequeueHostingView()
+        hostedViews[key] = view
+        let state = FlyCellState(
+          isSelected: engine.selection.ids.contains(id), isEmphasized: emphasized && engine.selection.ids.contains(id),
+          isHovered: hoveredRow == i, displayIndex: i)
+        if view.renderedKey != AnyHashable(key) || view.renderedGeneration != hostedGeneration || view.renderedState != state {
+          view.rootView = AnyView(FlyHostedCell(content: content(engine.row(atDisplayIndex: i)), state: state, alignment: alignment))
+          view.renderedKey = AnyHashable(key)
+          view.renderedGeneration = hostedGeneration
+          view.renderedState = state
+        }
+        view.isInteractive = definition.isInteractive
+        view.onMouseDown = { [weak self] in
+          guard let self else { return }
+          self.window?.makeFirstResponder(self)
+          if !self.engine.selection.ids.contains(id) {
+            self.engine.selection.select(id)
+            self.selectionDidChange()
+          }
+        }
+        if view.superview !== container { container.addSubview(view) }
+        let r = rowRect(i)
+        let frame = NSRect(x: x, y: r.minY, width: width, height: r.height)
+        if view.frame != frame { view.frame = frame }
+        view.isHidden = false
+      }
+    }
+    for (key, view) in hostedViews where !live.contains(key) {
+      hostedViews.removeValue(forKey: key)
+      recycle(view)
+    }
+  }
+
+  private func dequeueHostingView() -> FlyHostingView {
+    if let view = hostedPool.popLast() { return view }
+    return FlyHostingView(rootView: AnyView(EmptyView()))
+  }
+
+  private func recycle(_ view: FlyHostingView) {
+    view.isHidden = true
+    view.removeFromSuperview()
+    view.renderedKey = nil
+    view.renderedState = nil
+    if hostedPool.count < 128 { hostedPool.append(view) } else { view.rootView = AnyView(EmptyView()) }
+  }
+
   // MARK: Scrolling
 
   func scrollToRow(_ displayIndex: Int) {
@@ -413,6 +529,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     }
     // The header and pinned columns float, so the whole visible rect repaints each scroll step.
     setNeedsDisplay(visibleArea)
+    updateHostedCells()
   }
 
   override func viewDidMoveToWindow() {
@@ -433,11 +550,11 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
 
   @objc private func windowKeyChanged(_ note: Notification) {
     isWindowKey = note.name == NSWindow.didBecomeKeyNotification
-    setNeedsDisplay(visibleArea)
+    refreshVisible()
   }
 
-  override func becomeFirstResponder() -> Bool { setNeedsDisplay(visibleArea); return true }
-  override func resignFirstResponder() -> Bool { setNeedsDisplay(visibleArea); return true }
+  override func becomeFirstResponder() -> Bool { refreshVisible(); return true }
+  override func resignFirstResponder() -> Bool { refreshVisible(); return true }
 
   // MARK: Hover and cursors
 
@@ -455,12 +572,14 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
       if let old = hoveredRow { setNeedsDisplay(rowRect(old)) }
       hoveredRow = row
       if let row { setNeedsDisplay(rowRect(row)) }
+      if !hostedColumns.isEmpty { updateHostedCells() }
     }
   }
   override func mouseExited(with event: NSEvent) {
     if let old = hoveredRow {
       hoveredRow = nil
       setNeedsDisplay(rowRect(old))
+      if !hostedColumns.isEmpty { updateHostedCells() }
     }
   }
   override func resetCursorRects() {
@@ -641,7 +760,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
 
   private func selectionDidChange() {
     onSelectionChange?(engine.selection)
-    setNeedsDisplay(visibleArea)
+    refreshVisible()
   }
 
   // MARK: Accessibility (table-level; per-cell elements are scheduled)

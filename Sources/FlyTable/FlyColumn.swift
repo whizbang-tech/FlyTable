@@ -1,10 +1,16 @@
 import Foundation
+import SwiftUI
 import FlyTableCore
 
 /// A column bound to a row type: the renderer-independent spec plus how to read a cell value.
 public struct FlyColumn<Row> {
   public var spec: FlyColumnSpec
+  /// The cell value: drawn by the renderer for ordinary columns; the sort key for hosted columns.
   public let value: (Row) -> FlyCellValue
+  /// A SwiftUI view per row. Hosted cells exist only for the visible rows and are recycled on scroll.
+  public internal(set) var content: ((Row) -> AnyView)?
+  /// Hosted content receives clicks (buttons, toggles). Otherwise clicks fall through to row selection.
+  public internal(set) var isInteractive = false
 
   public init(_ title: String, id: FlyColumnID? = nil, value: @escaping (Row) -> FlyCellValue) {
     self.spec = FlyColumnSpec(id: id ?? FlyColumnID(title.lowercased()), title: title)
@@ -49,6 +55,32 @@ public struct FlyColumn<Row> {
     spec.isSortable = false
   }
 
+  /// A hosted cell: any SwiftUI view per row, drawn over the row by the renderer for the visible
+  /// rows only. Give `sortBy` to make the column sortable; `.fit` width is not measured for
+  /// hosted columns, so set a width. Read `@Environment(\.flyCellState)` inside to react to selection.
+  ///
+  /// ```swift
+  /// FlyColumn("Burn", sortBy: \.burn) { matter in BurnBar(matter.burn) }.width(.fixed(140))
+  /// ```
+  public init<Content: View>(
+    _ title: String, id: FlyColumnID? = nil, sortBy: ((Row) -> FlyCellValue)? = nil,
+    @ViewBuilder content: @escaping (Row) -> Content
+  ) {
+    self.spec = FlyColumnSpec(id: id ?? FlyColumnID(title.lowercased()), title: title)
+    self.value = sortBy ?? { _ in .empty }
+    self.content = { AnyView(content($0)) }
+    if sortBy == nil { spec.isSortable = false }
+  }
+  /// A hosted cell sorted by a key path (String, Int, Double, Date, Bool or an optional of one).
+  public init<Content: View, Key: FlyCellValueConvertible>(
+    _ title: String, id: FlyColumnID? = nil, sortBy key: KeyPath<Row, Key>, @ViewBuilder content: @escaping (Row) -> Content
+  ) {
+    self.init(title, id: id, sortBy: { $0[keyPath: key].flyCellValue }, content: content)
+  }
+
+  /// Whether the column hosts a SwiftUI view per row.
+  public var isHosted: Bool { content != nil }
+
   public func width(_ width: FlyColumnWidth) -> Self { var c = self; c.spec.width = width; return c }
   public func width(min: CGFloat? = nil, max: CGFloat? = nil) -> Self {
     var c = self
@@ -61,6 +93,9 @@ public struct FlyColumn<Row> {
   public func sortable(_ flag: Bool) -> Self { var c = self; c.spec.isSortable = flag; return c }
   public func resizable(_ flag: Bool) -> Self { var c = self; c.spec.isResizable = flag; return c }
   public func hideable(_ flag: Bool) -> Self { var c = self; c.spec.isHideable = flag; return c }
+  /// Let clicks reach hosted content instead of selecting the row. The row is still selected on
+  /// mouse-down before the content sees the event.
+  public func interactive(_ flag: Bool = true) -> Self { var c = self; c.isInteractive = flag; return c }
 }
 
 @resultBuilder

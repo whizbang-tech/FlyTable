@@ -16,6 +16,7 @@ let package = Package(
     .target(name: "FlyTable", dependencies: ["FlyTableCore"]),
     .executableTarget(name: "FlyTableGallery", dependencies: ["FlyTable"]),
     .testTarget(name: "FlyTableCoreTests", dependencies: ["FlyTableCore"]),
+    .testTarget(name: "FlyTableTests", dependencies: ["FlyTable"]),
   ],
   swiftLanguageModes: [.v6]
 )

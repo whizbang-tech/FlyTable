@@ -97,3 +97,17 @@ public final class FlyCellFormatters: @unchecked Sendable {
     }
   }
 }
+
+/// Values that can stand in for a cell when sorting a hosted column (`FlyColumn(_:sortBy:content:)`).
+public protocol FlyCellValueConvertible {
+  var flyCellValue: FlyCellValue { get }
+}
+extension String: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { .text(self) } }
+extension Int: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { .integer(self) } }
+extension Double: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { .number(self, fractionDigits: 2) } }
+extension Date: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { .date(self) } }
+extension Bool: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { .bool(self) } }
+extension FlyCellValue: FlyCellValueConvertible { public var flyCellValue: FlyCellValue { self } }
+extension Optional: FlyCellValueConvertible where Wrapped: FlyCellValueConvertible {
+  public var flyCellValue: FlyCellValue { self?.flyCellValue ?? .empty }
+}

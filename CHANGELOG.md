@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3 (2026-10-29)
+
+- Hosted cells: `FlyColumn(_:sortBy:content:)` takes any SwiftUI view per row. The renderer hosts an `NSHostingView` for the visible rows of a hosted column only and recycles them through a pool as rows scroll; content is re-evaluated when the row, its state or the host view changes. Pinned hosted columns float with the pinned region; cells clip below the header.
+- `FlyCellState` in the environment (`\.flyCellState`): selected, emphasized, hovered, display index.
+- `.interactive()` on a column lets clicks reach the content (buttons, toggles) after selecting the row; other hosted cells pass clicks through to row selection.
+- `FlyCellValueConvertible` (String, Int, Double, Date, Bool, optionals, `FlyCellValue`) for `sortBy` key paths.
+- New `FlyTableTests` target (6 tests) beside the 24 core tests.
+- Gallery: Attorney as an avatar cell sorted by name, a Burn column with a budget bar, an interactive Flag column.
+
 ## 0.1.2 (2026-10-29)
 
 - Badge cells: `FlyCellValue.badge` and `.badges`, `FlyBadge` (text, `FlyTint`, `FlyBadgeFill` tinted/solid/quiet, optional SF Symbol), `FlyTint` with FlyUI's six tones and eight category hues (swatch and solid values from FlyUI). Column initializers `FlyColumn(_:badge:fill:symbol:tint:)` and `FlyColumn(_:badges:fill:tint:)`.

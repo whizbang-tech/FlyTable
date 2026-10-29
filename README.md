@@ -24,6 +24,8 @@ FlyTable(matters, selection: $selection, sortOrder: $sort, layout: $layout) {
   FlyColumn("Hours", value: \.hours)            // numeric: trailing, tabular digits
   FlyColumn("Status", badge: \.status) { status in status == "Open" ? .success : .neutral }
   FlyColumn("Practice", badges: \.areas, tint: hue(for:))   // several quiet pills, "+N" when they overflow
+  FlyColumn("Attorney", sortBy: \.attorney) { AvatarCell($0) }.width(min: 150)   // hosted SwiftUI cell
+  FlyColumn("Flag") { Button { flag($0) } label: { Image(systemName: "star") } }.interactive()
   FlyColumn("Opened", value: \.opened)
 }
 .tableStyle(.card)               // .inset, .fullWidth, .plain, .card
@@ -41,11 +43,19 @@ End, Page Up/Down, Cmd-A and Escape for selection; right-click selects the row b
 appears; double-click or Return activates; hover highlight; emphasized selection in the key window
 and grey selection when it is not; alternating rows, row and column separators as options.
 
-![FlyTable gallery in the FlyUI theme: 100,000 synthetic matters in a card surface, sorted by Hours](docs/gallery.png)
+Hosted cells take any SwiftUI view, including FlyUI components. The renderer hosts a view only
+for the visible rows of a hosted column and recycles the views as rows scroll out, so a hosted
+column costs about one `NSHostingView` per visible row rather than one per row. Clicks on a hosted
+cell select the row unless the column is `.interactive()`, in which case the row is selected and
+the content gets the click. Inside the cell, `@Environment(\.flyCellState)` reports selection,
+emphasis and hover. Give `sortBy` a key path or a closure to make the column sortable; `.fit`
+width is not measured for hosted columns.
+
+![FlyTable gallery in the FlyUI theme: 100,000 synthetic matters in a card surface with badge, avatar, burn-bar and star columns](docs/gallery.png)
 
 ## Status
 
-Version 0.1.0, macOS only. The iOS renderer, inline editing, outline rows, floating group rows,
+Version 0.1.3, macOS only. The iOS renderer, inline editing, outline rows, floating group rows,
 variable row heights in the renderer, per-cell accessibility elements and the benchmark target
 are scheduled; see `docs/proposal.md` §5.5 for the milestones and §5.4 for the acceptance bar.
 The floor is macOS 15, iOS 18 and visionOS 2, matching FlyUI.

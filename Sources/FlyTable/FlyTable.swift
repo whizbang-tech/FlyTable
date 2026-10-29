@@ -121,7 +121,7 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
       if let layout = table.layout?.wrappedValue, layout != engine.layout { engine.layout = layout; needsLayout = true }
       if engine.selection.ids != table.selection {
         engine.selection.ids = table.selection
-        view.setNeedsDisplay(view.visibleRect)
+        view.refreshVisible()
       }
       var configuration = view.configuration
       configuration.style = table.style
@@ -138,7 +138,10 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
         view.configuration = configuration  // triggers invalidateAll
         needsLayout = false
       }
-      if needsLayout { view.invalidateAll() }
+      if needsLayout { view.invalidateAll() } else if !initial, table.columns.contains(where: \.isHosted) {
+        // The host re-rendered: hosted content closures may read state that changed.
+        view.hostedContentDidChange()
+      }
     }
 
     @MainActor final class Coordinator {

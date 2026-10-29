@@ -279,8 +279,8 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
         let symbol = NSImage(systemSymbolName: sort.ascending ? "chevron.up" : "chevron.down", accessibilityDescription: nil)?
           .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 9, weight: .bold).applying(.init(paletteColors: [theme.headerText])))
       {
-        let cx = (column.spec.alignment == .leading || column.spec.alignment == .center)
-          ? min(tx + shown + 4, x + column.width - inset - 10) : x + column.width - inset - 10
+        // The sort chevron sits at the trailing edge of every heading, whatever the text alignment.
+        let cx = x + column.width - inset - 10
         symbol.draw(in: NSRect(x: cx, y: y + (headerHeight - 9) / 2, width: 10, height: 9))
       }
       context.restoreGState()

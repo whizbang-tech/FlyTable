@@ -8,6 +8,7 @@ struct Matter: Identifiable, Sendable {
   let client: String
   let attorney: String
   let status: String
+  let tags: [String]
   let hours: Double
   let opened: Date
   let isBillable: Bool
@@ -18,6 +19,21 @@ enum SyntheticData {
   static let lasts = ["Lovelace", "Hopper", "Johnson", "Turing", "Dijkstra", "Liskov", "Knuth", "Hamilton", "Torvalds", "Ritchie", "Thompson", "Perlman", "Allen", "Bartik", "Lamarr", "Berners-Lee"]
   static let parties = ["Acme", "Wile", "Doe", "Roe", "Park Estate", "Smith", "Jones", "Northwind", "Contoso", "Globex", "Initech", "Umbrella", "Stark", "Wayne", "Tyrell", "Hooli"]
   static let statuses = ["Open", "Discovery", "Pending", "On Hold", "Closed", "Appeal"]
+  static let practiceAreas = ["Litigation", "Estate", "Family", "Corporate", "IP", "Real Estate", "Employment", "Immigration"]
+  static func tint(for status: String) -> FlyTint {
+    switch status {
+    case "Open": .success
+    case "Discovery": .info
+    case "Pending": .warning
+    case "On Hold": .neutral
+    case "Appeal": .destructive
+    default: .graphite
+    }
+  }
+  static func tint(forArea area: String) -> FlyTint {
+    let hues: [FlyTint] = [.azure, .navy, .cyan, .violet, .coral, .amber, .emerald, .graphite]
+    return hues[(practiceAreas.firstIndex(of: area) ?? 0) % hues.count]
+  }
 
   static func matters(_ count: Int) -> [Matter] {
     var state: UInt64 = 0x9E3779B97F4A7C15
@@ -35,6 +51,7 @@ enum SyntheticData {
         client: "\(firsts[f]) \(lasts[l])",
         attorney: "\(firsts[af]) \(lasts[al])",
         status: statuses[Int(next() % UInt64(statuses.count))],
+        tags: (0..<Int(next() % 4)).map { _ in practiceAreas[Int(next() % UInt64(practiceAreas.count))] },
         hours: Double(next() % 40_000) / 100,
         opened: base.addingTimeInterval(-Double(next() % 2_000) * 86_400),
         isBillable: next() % 4 != 0
@@ -63,7 +80,8 @@ struct GalleryView: View {
       FlyColumn("Matter", value: \Matter.title).width(.flex(2)).width(min: 160)
       FlyColumn("Client", value: \Matter.client).width(min: 120)
       FlyColumn("Attorney", value: \Matter.attorney).width(min: 120)
-      FlyColumn("Status", value: \Matter.status).width(.fixed(100))
+      FlyColumn("Status", badge: \Matter.status, tint: SyntheticData.tint(for:)).width(.fixed(110))
+      FlyColumn("Practice", badges: \Matter.tags, tint: SyntheticData.tint(forArea:)).width(.flex(1.2)).width(min: 140)
       FlyColumn("Hours", value: \Matter.hours).width(.fixed(90))
       FlyColumn("Opened", value: \Matter.opened).width(.fixed(110))
       FlyColumn("Billable", value: \Matter.isBillable).width(.fixed(80))

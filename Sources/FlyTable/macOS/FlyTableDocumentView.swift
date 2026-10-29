@@ -19,7 +19,7 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
 
   private(set) var resolved: [FlyResolvedColumn] = []
   private var geometry = FlyRowGeometry(rowCount: 0, rowHeight: 28)
-  private let lines = FlyCellCache<CTLine>(capacity: 30_000)
+  private let lines = FlyCellCache<FlyRenderedCell>(capacity: 30_000)
   private var fitWidths: [FlyColumnID: CGFloat] = [:]
   private var fitRevision = -1
   private var hoveredRow: Int?
@@ -80,8 +80,11 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
       let font = column.spec.alignment == .numeric ? theme.numericFont : theme.cellFont
       for k in 0..<sample {
         let i = min(k * stride, engine.count - 1)
-        let s = engine.value(atDisplayIndex: i, column: column.spec.id).displayString()
-        width = max(width, (s as NSString).size(withAttributes: [.font: font]).width)
+        let value = engine.value(atDisplayIndex: i, column: column.spec.id)
+        let s = value.displayString()
+        var w = (s as NSString).size(withAttributes: [.font: font]).width
+        if case .badge = value { w = (s as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 12)]).width + 16 }
+        width = max(width, w)
       }
       let title = (column.spec.title as NSString).size(withAttributes: [.font: theme.headerFont]).width + 18
       fitWidths[column.spec.id] = ceil(max(width, title)) + theme.cellInset * 2
@@ -197,23 +200,115 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
     for i in rows {
       let key = FlyCellKey(row: i, column: column.id, revision: engine.revision)
-      let line = lines.value(for: key) {
-        makeLine(engine.value(atDisplayIndex: i, column: column.id).displayString(), font: font, width: textWidth)
-      }
+      let cell = lines.value(for: key) { render(engine.value(atDisplayIndex: i, column: column.id), font: font, width: textWidth) }
       let selected = engine.selection.ids.contains(engine.id(atDisplayIndex: i))
-      context.setFillColor((selected && emphasized ? theme.selectedText : theme.text).cgColor)
-      var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
-      let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
       let r = rowRect(i)
-      let baseline = (r.midY + (ascent - descent) / 2).rounded()
-      let tx: CGFloat
-      switch column.spec.alignment {
-      case .leading: tx = x + inset
-      case .center: tx = x + (column.width - width) / 2
-      case .trailing, .numeric: tx = x + column.width - inset - width
+      switch cell {
+      case .line(let line):
+        context.setFillColor((selected && emphasized ? theme.selectedText : theme.text).cgColor)
+        var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
+        let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
+        let baseline = (r.midY + (ascent - descent) / 2).rounded()
+        let tx: CGFloat
+        switch column.spec.alignment {
+        case .leading: tx = x + inset
+        case .center: tx = x + (column.width - width) / 2
+        case .trailing, .numeric: tx = x + column.width - inset - width
+        }
+        context.textPosition = CGPoint(x: tx.rounded(), y: baseline)
+        CTLineDraw(line, context)
+      case .badges(let badges):
+        drawBadges(badges, in: NSRect(x: x + inset, y: r.minY, width: textWidth, height: r.height), alignment: column.spec.alignment, context: context)
       }
-      context.textPosition = CGPoint(x: tx.rounded(), y: baseline)
-      CTLineDraw(line, context)
+    }
+    context.restoreGState()
+  }
+
+  private func render(_ value: FlyCellValue, font: NSFont, width: CGFloat) -> FlyRenderedCell {
+    switch value {
+    case .badge(let b): return .badges([renderBadge(b)])
+    case .badges(let bs): return .badges(bs.map(renderBadge))
+    default: return .line(makeLine(value.displayString(), font: font, width: width))
+    }
+  }
+
+  private var badgeFont: NSFont { .systemFont(ofSize: 12) }
+  private func renderBadge(_ badge: FlyBadge) -> FlyRenderedBadge {
+    let line = makeLine(badge.text, font: badgeFont, width: 240)
+    let width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    let symbol = badge.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 10, weight: .semibold)) }
+    return FlyRenderedBadge(line: line, textWidth: width, symbol: symbol, tint: badge.tint, fill: badge.fill)
+  }
+
+  /// FlyUI's capsules: 8pt horizontal padding, caption text, a wash with a 1pt edge (tinted), a
+  /// solid hue with white text (solid), or the wash alone (quiet). Badges that do not fit collapse
+  /// into a "+N" tail.
+  private func drawBadges(_ badges: [FlyRenderedBadge], in rect: NSRect, alignment: FlyColumnAlignment, context: CGContext) {
+    guard !badges.isEmpty else { return }
+    let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+    let height = min(rect.height - 6, 22).rounded()
+    let gap: CGFloat = 6
+    let pad: CGFloat = 8
+    func width(_ b: FlyRenderedBadge) -> CGFloat { (b.textWidth + pad * 2 + (b.symbol == nil ? 0 : 14)).rounded() }
+    var widths = badges.map(width)
+    var shown = badges.count
+    var total = widths.reduce(0, +) + gap * CGFloat(max(badges.count - 1, 0))
+    var tail: FlyRenderedBadge?
+    if total > rect.width, badges.count > 1 {
+      shown = 0
+      total = 0
+      for w in widths {
+        let tailWidth: CGFloat = 36
+        if total + w + (shown > 0 ? gap : 0) + gap + tailWidth <= rect.width { total += w + (shown > 0 ? gap : 0); shown += 1 } else { break }
+      }
+      shown = max(shown, 1)
+      let rest = badges.count - shown
+      if rest > 0 {
+        tail = renderBadge(FlyBadge("+\(rest)", tint: .neutral, fill: .quiet))
+        widths = Array(widths.prefix(shown)) + [width(tail!)]
+        total = widths.reduce(0, +) + gap * CGFloat(widths.count - 1)
+      }
+    }
+    var cx: CGFloat
+    switch alignment {
+    case .leading: cx = rect.minX
+    case .center: cx = rect.minX + max((rect.width - total) / 2, 0)
+    case .trailing, .numeric: cx = rect.maxX - min(total, rect.width)
+    }
+    cx = cx.rounded()
+    let y = (rect.midY - height / 2).rounded()
+    context.saveGState()
+    context.clip(to: rect)
+    let drawn = Array(badges.prefix(shown)) + (tail.map { [$0] } ?? [])
+    for (index, b) in drawn.enumerated() {
+      let w = min(widths[index], rect.width)
+      let capsule = NSBezierPath(roundedRect: NSRect(x: cx, y: y, width: w, height: height), xRadius: height / 2, yRadius: height / 2)
+      let solid = b.tint.solid, ink = b.tint.swatch
+      let hue = NSColor(srgbRed: solid.red, green: solid.green, blue: solid.blue, alpha: 1)
+      let inkColor = isDark ? hue.blended(withFraction: 0.35, of: .white) ?? hue : NSColor(srgbRed: ink.red, green: ink.green, blue: ink.blue, alpha: 1)
+      switch b.fill {
+      case .solid:
+        hue.setFill(); capsule.fill()
+      case .tinted:
+        hue.withAlphaComponent(isDark ? 0.26 : 0.14).setFill(); capsule.fill()
+        hue.withAlphaComponent(isDark ? 0.5 : 0.38).setStroke()
+        let edge = NSBezierPath(roundedRect: NSRect(x: cx + 0.5, y: y + 0.5, width: w - 1, height: height - 1), xRadius: height / 2, yRadius: height / 2)
+        edge.lineWidth = 1; edge.stroke()
+      case .quiet:
+        hue.withAlphaComponent(isDark ? 0.22 : 0.11).setFill(); capsule.fill()
+      }
+      let textColor: NSColor = b.fill == .solid ? .white : inkColor
+      var tx = cx + pad
+      if let symbol = b.symbol {
+        symbol.withSymbolConfiguration(.init(paletteColors: [textColor]))?.draw(in: NSRect(x: tx, y: y + (height - 10) / 2, width: 11, height: 10))
+        tx += 14
+      }
+      var ascent: CGFloat = 0, descent: CGFloat = 0
+      _ = CTLineGetTypographicBounds(b.line, &ascent, &descent, nil)
+      context.setFillColor(textColor.cgColor)
+      context.textPosition = CGPoint(x: tx.rounded(), y: (y + height / 2 + (ascent - descent) / 2).rounded())
+      CTLineDraw(b.line, context)
+      cx += w + gap
     }
     context.restoreGState()
   }
@@ -563,5 +658,21 @@ final class FlyMenuProxy: NSObject {
   let action: @MainActor @Sendable () -> Void
   init(action: @escaping @MainActor @Sendable () -> Void) { self.action = action }
   @objc func performMenuAction(_ sender: Any?) { action() }
+}
+#endif
+
+#if os(macOS)
+/// A shaped cell ready to draw: one text line, or pills.
+enum FlyRenderedCell {
+  case line(CTLine)
+  case badges([FlyRenderedBadge])
+}
+
+struct FlyRenderedBadge {
+  let line: CTLine
+  let textWidth: CGFloat
+  let symbol: NSImage?
+  let tint: FlyTint
+  let fill: FlyBadgeFill
 }
 #endif

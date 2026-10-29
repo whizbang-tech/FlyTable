@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 (2026-10-29)
+
+- Badge cells: `FlyCellValue.badge` and `.badges`, `FlyBadge` (text, `FlyTint`, `FlyBadgeFill` tinted/solid/quiet, optional SF Symbol), `FlyTint` with FlyUI's six tones and eight category hues (swatch and solid values from FlyUI). Column initializers `FlyColumn(_:badge:fill:symbol:tint:)` and `FlyColumn(_:badges:fill:tint:)`.
+- Renderer draws pills natively from the cell cache: FlyUI capsule geometry (8pt padding, caption text, 1pt edge on tinted), light and dark washes, a "+N" tail when pills overflow the cell.
+- Gallery: Status as a tinted badge, a Practice column of quiet category tags.
+
 ## 0.1.1 (2026-10-29)
 
 - `FlyTableTheme.flyUI`: FlyUI's default table look from its semantic tokens (light and dark): raised header strip with the sorted heading tinted, surface/raised row stripes, border-default hairlines, baltic selection tint with the focus-border edge, 14pt body-compact cells and label-strong headings. `.theme(_:)` on `FlyTable`.

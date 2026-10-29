@@ -105,3 +105,21 @@ import Foundation
     #expect(cache.misses == 5)
   }
 }
+
+@Suite struct BadgeTests {
+  @Test func badgesDisplayAndCompareByText() {
+    let open = FlyCellValue.badge(FlyBadge("Open", tint: .success))
+    let closed = FlyCellValue.badge(FlyBadge("Closed", tint: .graphite, fill: .quiet))
+    #expect(open.displayString() == "Open")
+    #expect(FlyCellValue.compare(closed, open) == .orderedAscending)
+    #expect(FlyCellValue.badges([FlyBadge("A"), FlyBadge("B")]).displayString() == "A, B")
+    #expect(FlyCellValue.badges([]).displayString() == "—")
+  }
+
+  @Test func tonesResolveToHues() {
+    #expect(FlyTint.success.hue == .emerald)
+    #expect(FlyTint.destructive.hue == .coral)
+    #expect(FlyTint.violet.hue == .violet)
+    for tint in FlyTint.allCases { #expect(tint.solid.red >= 0 && tint.swatch.blue <= 1) }
+  }
+}

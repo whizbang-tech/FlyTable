@@ -28,6 +28,26 @@ public struct FlyColumn<Row> {
     self.init(title, id: id) { .bool($0[keyPath: value]) }
     spec.alignment = .center
   }
+  /// A pill per row, tinted by the value (FlyUI status badge).
+  public init(
+    _ title: String, id: FlyColumnID? = nil, badge: KeyPath<Row, String>, fill: FlyBadgeFill = .tinted,
+    symbol: ((String) -> String?)? = nil, tint: @escaping (String) -> FlyTint = { _ in .neutral }
+  ) {
+    self.init(title, id: id) { row in
+      let text = row[keyPath: badge]
+      return .badge(FlyBadge(text, tint: tint(text), fill: fill, symbol: symbol?(text)))
+    }
+  }
+  /// Several pills per row (FlyUI category badges or tags).
+  public init(
+    _ title: String, id: FlyColumnID? = nil, badges: KeyPath<Row, [String]>, fill: FlyBadgeFill = .quiet,
+    tint: @escaping (String) -> FlyTint = { _ in .neutral }
+  ) {
+    self.init(title, id: id) { row in
+      .badges(row[keyPath: badges].map { FlyBadge($0, tint: tint($0), fill: fill) })
+    }
+    spec.isSortable = false
+  }
 
   public func width(_ width: FlyColumnWidth) -> Self { var c = self; c.spec.width = width; return c }
   public func width(min: CGFloat? = nil, max: CGFloat? = nil) -> Self {

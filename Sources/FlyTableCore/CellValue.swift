@@ -7,6 +7,10 @@ public enum FlyCellValue: Sendable, Equatable {
   case integer(Int)
   case date(Date, style: DateStyle = .short)
   case bool(Bool)
+  /// One pill.
+  case badge(FlyBadge)
+  /// Several pills in a row; the renderer shows as many as fit and a "+N" tail.
+  case badges([FlyBadge])
   case empty
 
   public enum DateStyle: Sendable, Equatable { case short, medium, long, relative }
@@ -26,6 +30,8 @@ public enum FlyCellValue: Sendable, Equatable {
     case .integer(let v): formatters.integer(v)
     case .date(let d, let style): formatters.date(d, style: style)
     case .bool(let b): b ? "Yes" : "No"
+    case .badge(let b): b.text
+    case .badges(let bs): bs.isEmpty ? "—" : bs.map(\.text).joined(separator: ", ")
     case .empty: "—"
     }
   }
@@ -43,6 +49,7 @@ public enum FlyCellValue: Sendable, Equatable {
     case (.integer(let x), .number(let y, _)): return cmp(Double(x), y)
     case (.date(let x, _), .date(let y, _)): return cmp(x, y)
     case (.bool(let x), .bool(let y)): return x == y ? .orderedSame : (x ? .orderedDescending : .orderedAscending)
+    case (.badge(let x), .badge(let y)): return x.text.localizedStandardCompare(y.text)
     default: return a.displayString().localizedStandardCompare(b.displayString())
     }
   }

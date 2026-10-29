@@ -22,6 +22,8 @@ FlyTable(matters, selection: $selection, sortOrder: $sort, layout: $layout) {
   FlyColumn("Matter", value: \.title).width(.flex(2))
   FlyColumn("Client", value: \.client)
   FlyColumn("Hours", value: \.hours)            // numeric: trailing, tabular digits
+  FlyColumn("Status", badge: \.status) { status in status == "Open" ? .success : .neutral }
+  FlyColumn("Practice", badges: \.areas, tint: hue(for:))   // several quiet pills, "+N" when they overflow
   FlyColumn("Opened", value: \.opened)
 }
 .tableStyle(.card)               // .inset, .fullWidth, .plain, .card

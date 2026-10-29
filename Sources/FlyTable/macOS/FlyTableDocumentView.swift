@@ -166,6 +166,12 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
       if engine.selection.ids.contains(id) {
         (emphasized ? theme.selectionEmphasized : theme.selectionUnemphasized).setFill()
         selectionPath(r, visible: visible).fill()
+        if emphasized, let edge = theme.selectionEdge {
+          edge.setStroke()
+          let path = selectionPath(r.insetBy(dx: 0.5, dy: 0.5), visible: visible)
+          path.lineWidth = 1
+          path.stroke()
+        }
       } else if hoveredRow == i {
         theme.hover.setFill()
         selectionPath(r, visible: visible).fill()
@@ -264,6 +270,10 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
       let ty = y + (headerHeight - size.height) / 2
       context.saveGState()
       context.clip(to: CGRect(x: x, y: y, width: column.width, height: headerHeight))
+      if sort != nil, let tint = theme.headerSortedBackground {
+        tint.setFill()
+        NSRect(x: x, y: y, width: column.width, height: headerHeight - 0.5).fill()
+      }
       title.draw(at: NSPoint(x: tx.rounded(), y: ty.rounded()))
       if let sort,
         let symbol = NSImage(systemSymbolName: sort.ascending ? "chevron.up" : "chevron.down", accessibilityDescription: nil)?
@@ -318,7 +328,9 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView where Row.ID: Hashab
     NotificationCenter.default.addObserver(self, selector: #selector(windowKeyChanged), name: NSWindow.didResignKeyNotification, object: window)
     if let clip = enclosingScrollView?.contentView {
       clip.postsBoundsChangedNotifications = true
+      clip.postsFrameChangedNotifications = true
       NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsDidChange), name: NSView.boundsDidChangeNotification, object: clip)
+      NotificationCenter.default.addObserver(self, selector: #selector(clipBoundsDidChange), name: NSView.frameDidChangeNotification, object: clip)
     }
     isWindowKey = window.isKeyWindow
     relayout()

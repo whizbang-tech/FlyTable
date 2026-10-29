@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 (2026-10-29)
+
+- `FlyTableTheme.flyUI`: FlyUI's default table look from its semantic tokens (light and dark): raised header strip with the sorted heading tinted, surface/raised row stripes, border-default hairlines, baltic selection tint with the focus-border edge, 14pt body-compact cells and label-strong headings. `.theme(_:)` on `FlyTable`.
+- `FlyTableStyle.card`: FlyUI's card-family surface, a rounded bordered container with full-width rows.
+- Renderer: `headerSortedBackground` and `selectionEdge` theme slots; columns re-flow when the clip view's frame changes (window resize), not only its bounds.
+- Gallery: FlyUI theme toggle, card style default, surface-coloured window background.
+
 ## 0.1.0 (2026-10-29)
 
 First public cut.

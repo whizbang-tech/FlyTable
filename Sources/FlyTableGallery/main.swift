@@ -50,10 +50,11 @@ struct GalleryView: View {
   @State private var selection: Set<Int> = []
   @State private var sortOrder = FlySortOrder()
   @State private var layout = FlyColumnLayoutState()
-  @State private var style: FlyTableStyle = .inset
+  @State private var style: FlyTableStyle = .card
+  @State private var useFlyUITheme = true
   @State private var density: FlyRowDensity = .comfortable
-  @State private var alternating = false
-  @State private var separators = false
+  @State private var alternating = true
+  @State private var separators = true
   @State private var lastActivated = "—"
 
   var body: some View {
@@ -68,6 +69,7 @@ struct GalleryView: View {
       FlyColumn("Billable", value: \Matter.isBillable).width(.fixed(80))
     }
     .tableStyle(style)
+    .theme(useFlyUITheme ? .flyUI : .system)
     .density(density)
     .alternatingRowBackgrounds(alternating)
     .rowSeparators(separators)
@@ -79,6 +81,8 @@ struct GalleryView: View {
         FlyMenuItem("Copy", isEnabled: !ids.isEmpty) {},
       ]
     }
+    .padding(16)
+    .background(Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? NSColor(srgbRed: 0.09, green: 0.085, blue: 0.08, alpha: 1) : NSColor(srgbRed: 0.957, green: 0.961, blue: 0.961, alpha: 1) }))
     .frame(minWidth: 900, minHeight: 500)
     .toolbar {
       ToolbarItemGroup {
@@ -92,7 +96,9 @@ struct GalleryView: View {
           Text("Inset").tag(FlyTableStyle.inset)
           Text("Full Width").tag(FlyTableStyle.fullWidth)
           Text("Plain").tag(FlyTableStyle.plain)
+          Text("Card").tag(FlyTableStyle.card)
         }
+        Toggle("FlyUI", isOn: $useFlyUITheme)
         Picker("Density", selection: $density) {
           ForEach(FlyRowDensity.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
         }

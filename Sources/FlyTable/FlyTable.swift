@@ -28,6 +28,9 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
   private var alternatingRows = false
   private var rowSeparators = false
   private var columnSeparators = false
+  #if os(macOS)
+  private var theme: FlyTableTheme = .system
+  #endif
   private var onActivate: ((Set<Row.ID>) -> Void)?
   private var contextMenu: ((Set<Row.ID>) -> [FlyMenuItem])?
 
@@ -50,6 +53,10 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
   public func alternatingRowBackgrounds(_ on: Bool = true) -> Self { var c = self; c.alternatingRows = on; return c }
   public func rowSeparators(_ on: Bool = true) -> Self { var c = self; c.rowSeparators = on; return c }
   public func columnSeparators(_ on: Bool = true) -> Self { var c = self; c.columnSeparators = on; return c }
+  #if os(macOS)
+  /// Colours and fonts; `.system` (Finder, Mail) or `.flyUI` (FlyUI's default table).
+  public func theme(_ theme: FlyTableTheme) -> Self { var c = self; c.theme = theme; return c }
+  #endif
   /// Double-click or Return on the selection.
   public func onRowActivate(_ action: @escaping (Set<Row.ID>) -> Void) -> Self { var c = self; c.onActivate = action; return c }
   /// Right-click selects the row under the pointer first, then asks for items for the selection.
@@ -57,7 +64,13 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
 
   public var body: some View {
     #if os(macOS)
-    FlyTableRepresentable(table: self)
+    if style == .card {
+      FlyTableRepresentable(table: self)
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardCornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: theme.cardCornerRadius, style: .continuous).strokeBorder(Color(nsColor: theme.cardBorder), lineWidth: 1))
+    } else {
+      FlyTableRepresentable(table: self)
+    }
     #else
     Text("FlyTable: the iOS renderer is scheduled (see docs/proposal.md §5.5).")
     #endif
@@ -116,7 +129,9 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
       configuration.alternatingRows = table.alternatingRows
       configuration.rowSeparators = table.rowSeparators
       configuration.columnSeparators = table.columnSeparators
-      if configuration.style != view.configuration.style || configuration.density != view.configuration.density
+      configuration.theme = table.theme
+      let themeChanged = configuration.theme.cellFont != view.configuration.theme.cellFont || configuration.theme.background != view.configuration.theme.background
+      if themeChanged || configuration.style != view.configuration.style || configuration.density != view.configuration.density
         || configuration.alternatingRows != view.configuration.alternatingRows
         || configuration.rowSeparators != view.configuration.rowSeparators
         || configuration.columnSeparators != view.configuration.columnSeparators {

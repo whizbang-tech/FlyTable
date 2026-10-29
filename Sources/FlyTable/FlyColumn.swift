@@ -80,4 +80,6 @@ public struct FlyMenuItem: Sendable {
 /// classic bordered table; `plain` draws no background of its own.
 public enum FlyTableStyle: Sendable, Equatable, CaseIterable {
   case inset, fullWidth, plain
+  /// FlyUI's card-family surface: a rounded, bordered container with full-width rows inside.
+  case card
 }

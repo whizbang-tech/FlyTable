@@ -24,7 +24,8 @@ FlyTable(matters, selection: $selection, sortOrder: $sort, layout: $layout) {
   FlyColumn("Hours", value: \.hours)            // numeric: trailing, tabular digits
   FlyColumn("Opened", value: \.opened)
 }
-.tableStyle(.inset)              // .inset, .fullWidth, .plain
+.tableStyle(.card)               // .inset, .fullWidth, .plain, .card
+.theme(.flyUI)                   // .system (Finder, Mail) or .flyUI (FlyUI's default table)
 .density(.comfortable)           // 24 / 28 / 36 pt rows; the header matches
 .alternatingRowBackgrounds()
 .onRowActivate { ids in open(ids) }
@@ -38,7 +39,7 @@ End, Page Up/Down, Cmd-A and Escape for selection; right-click selects the row b
 appears; double-click or Return activates; hover highlight; emphasized selection in the key window
 and grey selection when it is not; alternating rows, row and column separators as options.
 
-![FlyTable gallery: 100,000 synthetic matters sorted by Hours, one row selected](docs/gallery.png)
+![FlyTable gallery in the FlyUI theme: 100,000 synthetic matters in a card surface, sorted by Hours](docs/gallery.png)
 
 ## Status
 

@@ -195,6 +195,30 @@ import FlyTableCore
     #expect(engine.selection.ids.isEmpty)
   }
 
+  @Test func nativeContextMenuPreservesOptionalIconsAndDestructiveAppearance() {
+    let engine = FlyTableEngine<Row>()
+    engine.setColumns([FlyColumn("Name", id: "name", value: \.name)])
+    engine.setRows([Row(id: 1, name: "One")], revision: 1)
+    let view = FlyTableDocumentView(engine: engine)
+    view.frame = NSRect(x: 0, y: 0, width: 600, height: 200)
+    view.relayout()
+    view.rowContextMenu = { _, _ in [
+      FlyMenuItem("Remove", systemImage: "trash", isDestructive: true) {},
+      FlyMenuItem("Unavailable", isEnabled: false, systemImage: "trash", isDestructive: true) {},
+      FlyMenuItem("Standard") {},
+    ] }
+    let location = view.convert(NSPoint(x: 20, y: view.rowRect(0).midY), to: nil)
+    let event = NSEvent.mouseEvent(with: .rightMouseDown, location: location, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    let items = view.menu(for: event)!.items
+    #expect(items[0].title == "Remove")
+    #expect(items[0].image != nil)
+    #expect(items[0].attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor == .systemRed)
+    #expect(!items[1].isEnabled)
+    #expect(items[1].attributedTitle == nil)
+    #expect(items[2].image == nil && items[2].attributedTitle == nil)
+    #expect(FlyMenuItem.separator.systemImage == nil && !FlyMenuItem.separator.isDestructive)
+  }
+
   @Test func editableCellDoubleClickDoesNotActivateRow() {
     let engine = FlyTableEngine<Row>()
     engine.setColumns([FlyColumn<Row>("Name", value: \.name).handlesDoubleClick().cellContent { Text($0.name) }])

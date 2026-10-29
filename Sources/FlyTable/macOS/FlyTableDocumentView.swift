@@ -803,6 +803,12 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView, NSDraggingSource wh
       let mi = NSMenuItem(title: item.title, action: #selector(FlyMenuProxy.performMenuAction(_:)), keyEquivalent: "")
       mi.target = proxy
       mi.isEnabled = item.isEnabled
+      if let systemImage = item.systemImage {
+        mi.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
+      }
+      if item.isDestructive && item.isEnabled {
+        mi.attributedTitle = NSAttributedString(string: item.title, attributes: [.foregroundColor: NSColor.systemRed])
+      }
       menu.addItem(mi)
     }
     return menu

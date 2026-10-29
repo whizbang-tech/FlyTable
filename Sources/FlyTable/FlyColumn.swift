@@ -93,12 +93,16 @@ public struct FlyMenuItem: Sendable {
   public var title: String
   public var isEnabled: Bool
   public var isSeparator: Bool
+  public var systemImage: String?
+  public var isDestructive: Bool
   public var action: @MainActor @Sendable () -> Void
 
-  public init(_ title: String, isEnabled: Bool = true, action: @escaping @MainActor @Sendable () -> Void) {
+  public init(_ title: String, isEnabled: Bool = true, systemImage: String? = nil, isDestructive: Bool = false, action: @escaping @MainActor @Sendable () -> Void) {
     self.title = title
     self.isEnabled = isEnabled
     self.isSeparator = false
+    self.systemImage = systemImage
+    self.isDestructive = isDestructive
     self.action = action
   }
   public static let separator = FlyMenuItem("", isEnabled: false, isSeparator: true) {}
@@ -106,6 +110,8 @@ public struct FlyMenuItem: Sendable {
     self.title = title
     self.isEnabled = isEnabled
     self.isSeparator = isSeparator
+    self.systemImage = nil
+    self.isDestructive = false
     self.action = action
   }
 }

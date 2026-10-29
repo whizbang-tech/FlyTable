@@ -123,3 +123,24 @@ import Foundation
     for tint in FlyTint.allCases { #expect(tint.solid.red >= 0 && tint.swatch.blue <= 1) }
   }
 }
+
+@Suite struct SelectionAdmissionTests {
+  @Test func disabledRowsAreRemovedFromSelectionAndFocus() {
+    var selection = FlySelection(ids: Set([1, 2, 3]), anchor: 2, focused: 2)
+    selection.constrain(to: .multiple, disabled: [2])
+    #expect(selection.ids == [1, 3])
+    #expect(selection.anchor == nil)
+    #expect(selection.focused == nil)
+  }
+  @Test func singleSelectionKeepsTheFocusedRow() {
+    var selection = FlySelection(ids: Set([1, 2, 3]), anchor: 1, focused: 3)
+    selection.constrain(to: .single, disabled: [])
+    #expect(selection.ids == [3])
+  }
+  @Test func noSelectionRetainsKeyboardFocus() {
+    var selection = FlySelection(ids: Set([1]), anchor: 1, focused: 1)
+    selection.constrain(to: .none, disabled: [])
+    #expect(selection.ids.isEmpty)
+    #expect(selection.focused == 1)
+  }
+}

@@ -350,7 +350,9 @@ dark, increased contrast and inactive window, as FlyUI does today.
    hover, keyboard, context menu, type-select, drag and drop, accessibility. Gallery app with
    1M synthetic rows. Benchmarks in CI.
 3. **SwiftUI API and hosted cells**: `FlyTable`/`FlyColumn` builders, bindings, hosted custom
-   cells through the pooled renderer, persistence.
+   cells through the pooled renderer, persistence. Optional visible-cell hosting, measured supplementary rows,
+   caller-owned sorting, selection admission, native drag/drop and focus/scroll callbacks implemented on the
+   consumer-capabilities branch (2026-10-29); integrated consumer visual acceptance remains pending.
 4. **Editing**: in-cell editor, commit policy, Tab/Enter navigation, copy/paste.
 5. **iOS/iPadOS**: `UIScrollView` document view, touch selection, horizontal scrolling on iPad,
    compact-width strategy (the host decides which columns survive, not a silent collapse).

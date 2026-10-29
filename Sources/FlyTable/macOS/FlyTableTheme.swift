@@ -138,6 +138,9 @@ public struct FlyTableConfiguration: @unchecked Sendable {
   public var rowSeparators = false
   public var columnSeparators = false
   public var floatingHeader = true
+  public var rowHeight: CGFloat?
+  public var headerHeight: CGFloat?
+  public var showsHeader = true
   public var theme: FlyTableTheme = .system
   public init() {}
 }

@@ -9,6 +9,7 @@ public final class FlyTableEngine<Row: Identifiable> where Row.ID: Hashable & Se
   public private(set) var columns: [FlyColumn<Row>] = []
   public private(set) var revision = 0
   public var sortOrder = FlySortOrder() { didSet { if sortOrder != oldValue { resort() } } }
+  public var sortsRows = true { didSet { if sortsRows != oldValue { resort() } } }
   public var layout = FlyColumnLayoutState()
   public var selection = FlySelection<Row.ID>()
   public private(set) var displayOrder: [Int] = []  // display index -> rows index
@@ -49,7 +50,7 @@ public final class FlyTableEngine<Row: Identifiable> where Row.ID: Hashable & Se
 
   public func resort() {
     displayIDsCache = nil
-    guard !sortOrder.isEmpty, !rows.isEmpty else {
+    guard sortsRows, !sortOrder.isEmpty, !rows.isEmpty else {
       displayOrder = Array(rows.indices)
       return
     }

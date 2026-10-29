@@ -1,10 +1,23 @@
 import Foundation
+import SwiftUI
 import FlyTableCore
 
 /// A column bound to a row type: the renderer-independent spec plus how to read a cell value.
 public struct FlyColumn<Row> {
   public var spec: FlyColumnSpec
   public let value: (Row) -> FlyCellValue
+  public var cellContent: ((Row) -> AnyView)?
+  public var headerContent: (() -> AnyView)?
+  public var handlesDoubleClick = false
+
+  public func cellContent<Content: View>(@ViewBuilder _ content: @escaping (Row) -> Content) -> Self {
+    var c = self; c.cellContent = { AnyView(content($0)) }; return c
+  }
+  /// Let hosted cell content own double-click (for example, to begin editing), without row activation.
+  public func handlesDoubleClick(_ enabled: Bool = true) -> Self { var c = self; c.handlesDoubleClick = enabled; return c }
+  public func headerContent<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> Self {
+    var c = self; c.headerContent = { AnyView(content()) }; return c
+  }
 
   public init(_ title: String, id: FlyColumnID? = nil, value: @escaping (Row) -> FlyCellValue) {
     self.spec = FlyColumnSpec(id: id ?? FlyColumnID(title.lowercased()), title: title)
@@ -60,6 +73,7 @@ public struct FlyColumn<Row> {
   public func pinned(_ pin: FlyColumnPin = .leading) -> Self { var c = self; c.spec.pin = pin; return c }
   public func sortable(_ flag: Bool) -> Self { var c = self; c.spec.isSortable = flag; return c }
   public func resizable(_ flag: Bool) -> Self { var c = self; c.spec.isResizable = flag; return c }
+  public func reorderable(_ flag: Bool) -> Self { var c = self; c.spec.isReorderable = flag; return c }
   public func hideable(_ flag: Bool) -> Self { var c = self; c.spec.isHideable = flag; return c }
 }
 

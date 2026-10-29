@@ -77,3 +77,19 @@ by Glide on the web and NGTable on the Mac, is a custom-drawn viewport with a ce
 ## Licence
 
 MIT. Copyright 2026 Whizbang Technologies.
+
+### Embedding a table in an existing workflow
+
+Optional capabilities preserve the default table renderer and appearance:
+
+- `.sortsRows(false)` keeps caller-sorted rows in their supplied order while headers still bind sort descriptors.
+- `.refreshRowsOnUpdate()` refreshes opaque row values on every SwiftUI update; use explicit `revision` for large immutable snapshots.
+- `.selectionMode(.none | .single | .multiple)`, `.disabledRowIDs(...)` and `.selectsOnRowClick(false)` configure selection admission. Keyboard focus can bind through `.focusedRow(...)`. `.togglesSoleSelectionOnClick()` permits clearing the only selected row; `.togglesSelectionOnClick()` toggles individual rows on plain clicks. Both preserve modifier-based ranges and double-click activation.
+- `FlyColumn.cellContent { row in ... }` and `.headerContent { ... }` host SwiftUI content only in visible cells, with the embedding environment and intrinsic content height unless an explicit per-row height is supplied. `.reorderable(false)` locks utility columns. `.handlesDoubleClick()` lets an editable hosted cell own double-click without activating its row.
+- `.rowContent { row in ... }` supplies optional full-width supplementary content. `.rowHeight { row in ... }` returns an explicit height or `nil` for measured supplementary content. Supplementary rows may be nonselectable while their content remains interactive.
+- Selection, row click, focus, new-tab activation and scroll-end callbacks let the host retain its existing commands and pagination. `.onFirstResponderChange` reports native focus independently of the focused row. `.activatesFocusedRowOnly()` targets the focused record, and `.rowContextMenu` receives the clicked row alongside the selection.
+- `.headerHeight(...)` makes room for optional header controls; `nil` uses the density default. `.columnContextMenu` adds column commands. `.allowsMultiColumnSorting(false)` and `.keyboardNavigationEnabled(false)` let a host restrict those interactions.
+- Native accessibility exposes row counts, visible rows/cells, selection, disabled states, sortable headers and activation; custom hosted controls retain their own accessibility children.
+- On macOS, `.onDragRows` supplies pasteboard writers and `.onDropRows(types:validate:perform:)` exposes native drop admission and delivery.
+
+The host still owns domain operations, data loading and persistence. These options add no application-specific dependency.

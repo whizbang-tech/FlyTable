@@ -38,11 +38,12 @@ public struct FlyColumnSpec: Sendable, Identifiable, Equatable {
   public var isSortable: Bool
   public var isResizable: Bool
   public var isHideable: Bool
+  public var isReorderable: Bool
 
   public init(
     id: FlyColumnID, title: String, width: FlyColumnWidth = .flex(), minWidth: CGFloat = 60,
     maxWidth: CGFloat = 2000, alignment: FlyColumnAlignment = .leading, pin: FlyColumnPin = .none,
-    isSortable: Bool = true, isResizable: Bool = true, isHideable: Bool = true
+    isSortable: Bool = true, isResizable: Bool = true, isHideable: Bool = true, isReorderable: Bool = true
   ) {
     self.id = id
     self.title = title
@@ -54,5 +55,6 @@ public struct FlyColumnSpec: Sendable, Identifiable, Equatable {
     self.isSortable = isSortable
     self.isResizable = isResizable
     self.isHideable = isHideable
+    self.isReorderable = isReorderable
   }
 }

@@ -54,3 +54,25 @@ public struct FlySelection<ID: Hashable & Sendable>: Sendable, Equatable {
     if extending { extend(to: id, in: order) } else { select(id) }
   }
 }
+
+/// Which selection gestures a table admits. Hosts can still observe row activation with no selection.
+public enum FlySelectionMode: Sendable, Equatable {
+  case none, single, multiple
+}
+
+public extension FlySelection {
+  mutating func constrain(to mode: FlySelectionMode, disabled: Set<ID>) {
+    ids.subtract(disabled)
+    if let focused, disabled.contains(focused) { self.focused = nil }
+    if let anchor, disabled.contains(anchor) { self.anchor = nil }
+    switch mode {
+    case .none: ids = []
+    case .single:
+      if ids.count > 1 {
+        if let focused, ids.contains(focused) { ids = [focused] }
+        else { ids = ids.first.map { [$0] } ?? [] }
+      }
+    case .multiple: break
+    }
+  }
+}

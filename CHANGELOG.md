@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Optional consumer capabilities: hosted SwiftUI cells and headers, full-width supplementary rows with variable or measured heights, selection modes and disabled rows, caller-owned sorting and row refresh, focus and click callbacks, new-tab activation, column reordering, scroll-end notification and native drag/drop hooks. Existing table styling and defaults remain intact.
+- Hosted content is restricted to visible cells, inherits the embedding SwiftUI environment, and measures natural cell/detail height.
+- Native accessibility exposes bounded rows/cells, hosted controls, sort headers, selection and activation. Optional header height/commands and interaction gates preserve richer host workflows.
+
 ## 0.1.2 (2026-10-29)
 
 - Badge cells: `FlyCellValue.badge` and `.badges`, `FlyBadge` (text, `FlyTint`, `FlyBadgeFill` tinted/solid/quiet, optional SF Symbol), `FlyTint` with FlyUI's six tones and eight category hues (swatch and solid values from FlyUI). Column initializers `FlyColumn(_:badge:fill:symbol:tint:)` and `FlyColumn(_:badges:fill:tint:)`.

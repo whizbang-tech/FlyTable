@@ -348,7 +348,8 @@ dark, increased contrast and inactive window, as FlyUI does today.
    with tests. Reference `NSTableView` renderer as the oracle.
 2. **Native renderer on macOS**: drawing, scrolling, frozen header, pinned columns, selection,
    hover, keyboard, context menu, type-select, drag and drop, accessibility. Gallery app with
-   1M synthetic rows. Benchmarks in CI.
+   1M synthetic rows. Benchmarks in CI. Optional caller-supplied header gradients span the visible
+   header continuously across pinned columns; flat defaults and sorted-heading overlays remain.
 3. **SwiftUI API and hosted cells**: `FlyTable`/`FlyColumn` builders, bindings, hosted custom
    cells through the pooled renderer, persistence. Optional visible-cell hosting, measured supplementary rows,
    caller-owned sorting, selection admission, native drag/drop and focus/scroll callbacks implemented on the

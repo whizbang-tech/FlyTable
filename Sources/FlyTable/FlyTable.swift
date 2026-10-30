@@ -230,7 +230,7 @@ public struct FlyTable<Row: Identifiable>: View where Row.ID: Hashable & Sendabl
       configuration.rowSeparators = table.rowSeparators
       configuration.columnSeparators = table.columnSeparators
       configuration.theme = table.theme
-      let themeChanged = configuration.theme.cellFont != view.configuration.theme.cellFont || configuration.theme.background != view.configuration.theme.background
+      let themeChanged = configuration.theme != view.configuration.theme
       if configuration.headerHeight != view.configuration.headerHeight || configuration.rowHeight != view.configuration.rowHeight || configuration.showsHeader != view.configuration.showsHeader || themeChanged || configuration.style != view.configuration.style || configuration.density != view.configuration.density
         || configuration.alternatingRows != view.configuration.alternatingRows
         || configuration.rowSeparators != view.configuration.rowSeparators

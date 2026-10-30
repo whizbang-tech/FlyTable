@@ -459,8 +459,24 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView, NSDraggingSource wh
     guard configuration.showsHeader else { return }
     let y = configuration.floatingHeader ? visible.minY : 0
     let headerRect = NSRect(x: visible.minX, y: y, width: visible.width, height: headerHeight)
-    theme.headerBackground.setFill()
-    headerRect.fill()
+    func drawBackground(clippedTo clip: NSRect) {
+      context.saveGState()
+      defer { context.restoreGState() }
+      context.clip(to: clip)
+      theme.headerBackground.setFill()
+      headerRect.fill()
+      if let fill = theme.headerGradient,
+         fill.startPoint != fill.endPoint,
+         let gradient = NSGradient(starting: fill.startColor, ending: fill.endColor) {
+        func point(_ unit: CGPoint) -> NSPoint {
+          NSPoint(x: headerRect.minX + unit.x * headerRect.width,
+                  y: headerRect.minY + unit.y * headerRect.height)
+        }
+        gradient.draw(from: point(fill.startPoint), to: point(fill.endPoint),
+                      options: [.drawsBeforeStartingLocation, .drawsAfterEndingLocation])
+      }
+    }
+    drawBackground(clippedTo: headerRect)
     theme.separator.setFill()
     NSRect(x: visible.minX + horizontalMargin, y: headerRect.maxY - 0.5, width: visible.width - horizontalMargin * 2, height: 0.5).fill()
 
@@ -504,8 +520,8 @@ final class FlyTableDocumentView<Row: Identifiable>: NSView, NSDraggingSource wh
     for c in unpinned { drawTitle(c, xOffset: 0) }
     context.restoreGState()
     if !pinned.isEmpty {
-      theme.headerBackground.setFill()
-      NSRect(x: visible.minX + horizontalMargin, y: y, width: pinnedWidth, height: headerHeight - 0.5).fill()
+      drawBackground(clippedTo: NSRect(x: visible.minX + horizontalMargin, y: y,
+                                      width: pinnedWidth, height: headerHeight - 0.5))
       for c in pinned { drawTitle(c, xOffset: visible.minX) }
     }
   }

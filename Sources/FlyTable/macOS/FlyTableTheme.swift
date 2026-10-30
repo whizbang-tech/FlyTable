@@ -2,17 +2,38 @@
 import AppKit
 import FlyTableCore
 
-/// Flat theme: every colour and font the renderer uses. `system` matches Finder and Mail;
+/// An optional two-color header fill. Points are normalized to the visible header rectangle,
+/// with (0, 0) at its top-left and (1, 1) at its bottom-right. The same coordinates are used
+/// for pinned headings, so the gradient never restarts at a column boundary.
+/// Callers own color, contrast and appearance choices; no gradient is applied by default.
+public struct FlyTableHeaderGradient: @unchecked Sendable, Equatable {
+  public var startColor: NSColor
+  public var endColor: NSColor
+  public var startPoint: CGPoint
+  public var endPoint: CGPoint
+
+  public init(startColor: NSColor, endColor: NSColor,
+              startPoint: CGPoint = .zero, endPoint: CGPoint = CGPoint(x: 1, y: 1)) {
+    self.startColor = startColor
+    self.endColor = endColor
+    self.startPoint = startPoint
+    self.endPoint = endPoint
+  }
+}
+
+/// Every colour and font the renderer uses. `system` matches Finder and Mail;
 /// `flyUI` matches FlyUI's default table (surface, raised header strip, tinted sorted heading,
 /// striped rows, hairline rules, tinted selection with a focus edge).
-public struct FlyTableTheme: @unchecked Sendable {
+public struct FlyTableTheme: @unchecked Sendable, Equatable {
   public var cellFont: NSFont
   public var numericFont: NSFont
   public var headerFont: NSFont
   public var background: NSColor
   public var alternateRowBackground: NSColor
   public var headerBackground: NSColor
-  /// Fill behind the sorted column's heading; nil leaves the header flat.
+  /// Optional gradient over the header background, spanning the visible width.
+  public var headerGradient: FlyTableHeaderGradient?
+  /// Fill behind the sorted column's heading, above the optional gradient.
   public var headerSortedBackground: NSColor?
   public var text: NSColor
   public var secondaryText: NSColor
@@ -104,7 +125,7 @@ public struct FlyTableTheme: @unchecked Sendable {
     headerBackground: NSColor, headerSortedBackground: NSColor?, text: NSColor, secondaryText: NSColor, selectedText: NSColor,
     headerText: NSColor, separator: NSColor, hover: NSColor, selectionEmphasized: NSColor, selectionUnemphasized: NSColor,
     selectionEdge: NSColor?, cellInset: CGFloat, insetStyleMargin: CGFloat, selectionCornerRadius: CGFloat,
-    cardCornerRadius: CGFloat, cardBorder: NSColor
+    cardCornerRadius: CGFloat, cardBorder: NSColor, headerGradient: FlyTableHeaderGradient? = nil
   ) {
     self.cellFont = cellFont
     self.numericFont = numericFont
@@ -112,6 +133,7 @@ public struct FlyTableTheme: @unchecked Sendable {
     self.background = background
     self.alternateRowBackground = alternateRowBackground
     self.headerBackground = headerBackground
+    self.headerGradient = headerGradient
     self.headerSortedBackground = headerSortedBackground
     self.text = text
     self.secondaryText = secondaryText
